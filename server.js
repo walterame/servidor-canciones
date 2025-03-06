@@ -20,11 +20,11 @@ function generarCodigo() {
     return codigo;
 }
 
-// Endpoint para crear una sala
+// Endpoint para crear una sala y enviar el código a Unity
 app.post("/crear-sala", (req, res) => {
     let codigo = generarCodigo();
     salas[codigo] = { jugadores: [], juego: null };
-    res.json({ codigo });
+    res.json({ codigo }); // Enviar código a Unity
 });
 
 // WebSocket: Manejo de conexiones
