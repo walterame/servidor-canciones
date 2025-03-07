@@ -34,24 +34,14 @@ wss.on("connection", (ws, req) => {
         let data = JSON.parse(msg);
         
         if (data.tipo === "unir") { // Jugador se une a una sala
-            let { sala, nombre, avatar } = data;
-            console.log("Jugador se une a la sala:", sala, nombre, avatar); // Verificar cuando un jugador se une
+            let { sala, nombre } = data;
+            console.log("Jugador se une a la sala:", sala, nombre); // Verificar cuando un jugador se une
+
             if (!salas[sala]) {
                 ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada" }));
                 return;
             }
-            salas[sala].jugadores.push({ ws, nombre, avatar });
-        } 
-        
-        else if (data.tipo === "respuesta") { // Jugador envía respuesta
-            let { sala, nombre, avatar, respuesta } = data;
-             console.log("Respuesta recibida:", respuesta, nombre, avatar); // Verificar la respuesta
-            if (salas[sala]) {
-                let mensaje = `${avatar} ${nombre}: ${respuesta}`;
-                if (salas[sala].juego) {
-                    salas[sala].juego.send(JSON.stringify({ tipo: "respuesta", mensaje }));
-                }
-            }
+            salas[sala].jugadores.push({ ws, nombre });
         } 
         
         else if (data.tipo === "juego") { // Unity se une como juego principal
