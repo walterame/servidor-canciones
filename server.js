@@ -30,18 +30,25 @@ app.post("/crear-sala", (req, res) => {
 // WebSocket: Manejo de conexiones
 wss.on("connection", (ws, req) => {
     ws.on("message", (msg) => {
-        console.log("Mensaje recibido:", msg);  // Imprimir el mensaje recibido en el servidor
+        console.log("Mensaje recibido:", msg);
         let data = JSON.parse(msg);
         
         if (data.tipo === "unir") { // Jugador se une a una sala
             let { sala, nombre } = data;
-            console.log("Jugador se une a la sala:", sala, nombre); // Verificar cuando un jugador se une
+            console.log("Jugador se une a la sala:", sala, nombre);
 
             if (!salas[sala]) {
                 ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada" }));
                 return;
             }
+
+            // Guardar el jugador en la sala
             salas[sala].jugadores.push({ ws, nombre });
+
+            // Enviar el nuevo jugador a Unity
+            if (salas[sala].juego) {
+                salas[sala].juego.send(JSON.stringify({ tipo: "nuevo-jugador", nombre }));
+            }
         } 
         
         else if (data.tipo === "juego") { // Unity se une como juego principal
