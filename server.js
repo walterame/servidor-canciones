@@ -13,9 +13,10 @@ let salas = {}; // Almacena las salas { "ABCD": { jugadores: [], juego: ws } }
 
 // Función para generar un código único de 4 letras
 function generarCodigo() {
+    const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     let codigo;
     do {
-        codigo = Math.random().toString(36).substring(2, 6).toUpperCase();
+        codigo = Array.from({ length: 4 }, () => letras[Math.floor(Math.random() * letras.length)]).join("");
     } while (salas[codigo]);
     return codigo;
 }
