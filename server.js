@@ -75,6 +75,8 @@ wss.on("connection", (ws, req) => {
             if (salas[sala].juego) {
                 salas[sala].juego.send(JSON.stringify({ tipo: "nuevo-jugador", id: playerId, nombre }));
             }
+            // Enviar la respuesta con el id del jugador para la redirección
+            ws.send(JSON.stringify({ tipo: "confirmacion-union", id: playerId }));
         } 
         
         else if (data.tipo === "juego") { // Unity se une como juego principal
