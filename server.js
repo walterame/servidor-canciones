@@ -44,7 +44,10 @@ app.post("/seleccionar-avatar", (req, res) => {
 
             // Enviar actualización a Unity
             if (salas[sala].juego) {
+                console.log(`Enviando mensaje WebSocket a Unity: { tipo: "avatar-seleccionado", id: ${id}, avatar: "${avatar}" }`);
                 salas[sala].juego.send(JSON.stringify({ tipo: "avatar-seleccionado", id, avatar }));
+            } else {
+                console.log("No se encontró conexión de juego para la sala.");
             }
 
             return res.json({ mensaje: "Avatar seleccionado con éxito" });
