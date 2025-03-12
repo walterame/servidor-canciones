@@ -59,18 +59,18 @@ app.post("/seleccionar-avatar", (req, res) => {
 });
 
 // WebSocket: Manejo de conexiones
-wss.on("connection", (ws) => {
-    console.log("🔗 Nueva conexión WebSocket.");
+ws.on("message", (msg) => {
+    console.log("📩 Mensaje recibido (buffer):", msg);
+    
+    let data;
+    try {
+        data = JSON.parse(msg.toString()); // Convertir buffer a string antes de parsear
+    } catch (error) {
+        console.log("❌ Error al parsear mensaje JSON:", error);
+        return;
+    }
 
-    ws.on("message", (msg) => {
-        console.log("📩 Mensaje recibido:", msg);
-        let data;
-        try {
-            data = JSON.parse(msg);
-        } catch (error) {
-            console.log("❌ Error al parsear mensaje:", error);
-            return;
-        }
+    console.log("📩 Mensaje recibido (parseado):", data);
 
         if (data.tipo === "unir") { // Jugador se une a una sala
             let { sala, nombre } = data;
