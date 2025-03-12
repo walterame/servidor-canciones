@@ -50,6 +50,8 @@ wss.on("connection", (ws) => {
     const interval = setInterval(() => {
         if (ws.readyState === 1) {
             ws.send(JSON.stringify({ tipo: "ping" }));
+        } else {
+            clearInterval(interval);
         }
     }, 15000);
 
@@ -79,6 +81,8 @@ wss.on("connection", (ws) => {
             let playerId = salas[sala].jugadores.length;
             salas[sala].jugadores.push({ id: playerId, ws, nombre, avatar: null });
 
+            console.log(`✅ Jugador ${nombre} (${playerId}) unido a la sala ${sala}`);
+
             ws.on("close", () => {
                 console.log(`❌ Jugador ${playerId} desconectado de la sala ${sala}`);
                 salas[sala].jugadores = salas[sala].jugadores.filter(j => j.ws !== ws);
@@ -87,9 +91,12 @@ wss.on("connection", (ws) => {
             if (salas[sala].juego && salas[sala].juego.readyState === 1) {
                 try {
                     salas[sala].juego.send(JSON.stringify({ tipo: "nuevo-jugador", id: playerId, nombre }));
+                    console.log("✅ Mensaje enviado a Unity.");
                 } catch (error) {
                     console.log("❌ Error enviando mensaje a Unity:", error);
                 }
+            } else {
+                console.log("⚠️ WebSocket de Unity no está en estado abierto o no está conectado.");
             }
             ws.send(JSON.stringify({ tipo: "confirmacion-union", id: playerId }));
         } else if (data.tipo === "juego") {
