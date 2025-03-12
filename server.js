@@ -91,10 +91,20 @@ wss.on("connection", (ws) => {
             });
 
             // Notificar a Unity sobre el nuevo jugador
-            if (salas[sala].juego && salas[sala].juego.readyState === 1) {
-                console.log(`🔔 Notificando a Unity sobre nuevo jugador: ${nombre}`);
-                salas[sala].juego.send(JSON.stringify({ tipo: "nuevo-jugador", id: playerId, nombre }));
-            }
+           if (salas[sala].juego) {
+    console.log(`🔔 Intentando notificar a Unity sobre nuevo jugador: ${nombre}, estado WebSocket: ${salas[sala].juego.readyState}`);
+
+    if (salas[sala].juego.readyState === 1) {
+        try {
+            salas[sala].juego.send(JSON.stringify({ tipo: "nuevo-jugador", id: playerId, nombre }));
+            console.log("✅ Mensaje enviado a Unity.");
+        } catch (error) {
+            console.log("❌ Error enviando mensaje a Unity:", error);
+        }
+    } else {
+        console.log("⚠️ WebSocket de Unity no está en estado abierto.");
+    }
+}
 
             ws.send(JSON.stringify({ tipo: "confirmacion-union", id: playerId }));
         } 
