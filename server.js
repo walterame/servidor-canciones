@@ -47,6 +47,10 @@ app.post("/seleccionar-avatar", (req, res) => {
 
 wss.on("connection", (ws) => {
     console.log("✅ Nuevo WebSocket conectado.");
+    let playerId = null;
+    let salaActual = null;
+    
+    // Setup heartbeat
     const interval = setInterval(() => {
         if (ws.readyState === 1) {
             ws.send(JSON.stringify({ tipo: "ping" }));
@@ -66,54 +70,111 @@ wss.on("connection", (ws) => {
 
         if (data.tipo === "unir") {
             let { sala, nombre } = data;
+            salaActual = sala;
+            
             if (!salas[sala]) {
                 ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada" }));
                 return;
             }
 
+            // Verificar si el jugador ya existe por nombre
             let jugadorExistente = salas[sala].jugadores.find(j => j.nombre === nombre);
             if (jugadorExistente) {
-                console.log(`⚠️ El jugador ${nombre} ya estaba en la sala, reestableciendo WebSocket.`);
+                console.log(`⚠️ El jugador ${nombre} ya estaba en la sala, actualizando WebSocket.`);
                 jugadorExistente.ws = ws;
+                playerId = jugadorExistente.id;
+                
+                // Notificar al jugador que se ha reconectado
+                ws.send(JSON.stringify({ 
+                    tipo: "confirmacion-union", 
+                    id: playerId,
+                    reconectado: true 
+                }));
                 return;
             }
 
-            let playerId = salas[sala].jugadores.length;
-            salas[sala].jugadores.push({ id: playerId, ws, nombre, avatar: null });
+            // Asignar nuevo ID de jugador
+            playerId = salas[sala].jugadores.length;
+            salas[sala].jugadores.push({ 
+                id: playerId, 
+                ws, 
+                nombre, 
+                avatar: null,
+                activo: true
+            });
 
             console.log(`✅ Jugador ${nombre} (${playerId}) unido a la sala ${sala}`);
 
-            ws.on("close", () => {
-                console.log(`❌ Jugador ${playerId} desconectado de la sala ${sala}`);
-                salas[sala].jugadores = salas[sala].jugadores.filter(j => j.ws !== ws);
-            });
-
+            // Notificar a Unity sobre el nuevo jugador (si está conectado)
             if (salas[sala].juego && salas[sala].juego.readyState === 1) {
                 try {
-                    salas[sala].juego.send(JSON.stringify({ tipo: "nuevo-jugador", id: playerId, nombre }));
+                    salas[sala].juego.send(JSON.stringify({ 
+                        tipo: "nuevo-jugador", 
+                        id: playerId, 
+                        nombre 
+                    }));
                     console.log("✅ Mensaje enviado a Unity.");
                 } catch (error) {
                     console.log("❌ Error enviando mensaje a Unity:", error);
+                    // Guardar el mensaje para enviarlo cuando Unity se reconecte
+                    salas[sala].mensajesPendientes.push({ 
+                        tipo: "nuevo-jugador", 
+                        id: playerId, 
+                        nombre 
+                    });
                 }
             } else {
-                console.log("⚠️ WebSocket de Unity no está en estado abierto o no está conectado.");
+                console.log("⚠️ WebSocket de Unity no está conectado. Guardando mensaje para envío posterior.");
+                salas[sala].mensajesPendientes.push({ 
+                    tipo: "nuevo-jugador", 
+                    id: playerId, 
+                    nombre 
+                });
             }
+
+            // Confirmar unión al jugador
             ws.send(JSON.stringify({ tipo: "confirmacion-union", id: playerId }));
+            
         } else if (data.tipo === "juego") {
             let { sala } = data;
+            salaActual = sala;
+            
             if (!salas[sala]) {
                 ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada" }));
                 return;
             }
+            
+            // Registrar la conexión de Unity
             salas[sala].juego = ws;
             console.log(`🎮 Unity conectado a la sala ${sala}`);
-            salas[sala].mensajesPendientes.forEach(mensaje => {
-                ws.send(JSON.stringify(mensaje));
-            });
-            salas[sala].mensajesPendientes = [];
-            ws.on("close", () => {
-                console.log(`⚠️ Unity desconectado de la sala ${sala}`);
-                salas[sala].juego = null;
+            
+            // Enviar mensajes pendientes a Unity
+            if (salas[sala].mensajesPendientes.length > 0) {
+                console.log(`📤 Enviando ${salas[sala].mensajesPendientes.length} mensajes pendientes a Unity`);
+                salas[sala].mensajesPendientes.forEach(mensaje => {
+                    ws.send(JSON.stringify(mensaje));
+                });
+                salas[sala].mensajesPendientes = [];
+            }
+            
+            // Enviar información de todos los jugadores conectados a Unity
+            salas[sala].jugadores.forEach(jugador => {
+                if (jugador.activo) {
+                    ws.send(JSON.stringify({
+                        tipo: "nuevo-jugador",
+                        id: jugador.id,
+                        nombre: jugador.nombre
+                    }));
+                    
+                    // Si el jugador ya seleccionó un avatar, enviarlo también
+                    if (jugador.avatar) {
+                        ws.send(JSON.stringify({
+                            tipo: "avatar-seleccionado",
+                            id: jugador.id,
+                            avatar: jugador.avatar
+                        }));
+                    }
+                }
             });
         }
     });
@@ -121,6 +182,34 @@ wss.on("connection", (ws) => {
     ws.on("close", () => {
         console.log("⚠️ Un WebSocket se ha desconectado.");
         clearInterval(interval);
+        
+        // Si es un jugador, marcarlo como inactivo pero no eliminarlo
+        if (playerId !== null && salaActual && salas[salaActual]) {
+            const jugador = salas[salaActual].jugadores.find(j => j.id === playerId);
+            if (jugador) {
+                console.log(`❌ Jugador ${playerId} desconectado de la sala ${salaActual}`);
+                jugador.activo = false;
+                
+                // Notificar a Unity sobre la desconexión del jugador
+                if (salas[salaActual].juego && salas[salaActual].juego.readyState === 1) {
+                    salas[salaActual].juego.send(JSON.stringify({
+                        tipo: "jugador-desconectado",
+                        id: playerId
+                    }));
+                } else {
+                    salas[salaActual].mensajesPendientes.push({
+                        tipo: "jugador-desconectado",
+                        id: playerId
+                    });
+                }
+            }
+        }
+        
+        // Si es Unity, marcar el juego como desconectado
+        if (salaActual && salas[salaActual] && salas[salaActual].juego === ws) {
+            console.log(`⚠️ Unity desconectado de la sala ${salaActual}`);
+            salas[salaActual].juego = null;
+        }
     });
 
     ws.on("error", (err) => {
