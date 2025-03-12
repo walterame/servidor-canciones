@@ -88,9 +88,23 @@ wss.on("connection", (ws) => {
                 ws.send(JSON.stringify({ 
                     tipo: "confirmacion-union", 
                     id: playerId,
-                    reconectado: true 
+                    reconectado: true,
+                    avatar: jugadorExistente.avatar // Devolver el avatar actual si existe
                 }));
                 return;
+            }
+
+            // Buscar si el jugador existe en otras salas para preservar su avatar
+            let avatarExistente = null;
+            for (let otraSala in salas) {
+                if (otraSala !== sala) {
+                    let jugadorEnOtraSala = salas[otraSala].jugadores.find(j => j.nombre === nombre);
+                    if (jugadorEnOtraSala && jugadorEnOtraSala.avatar) {
+                        avatarExistente = jugadorEnOtraSala.avatar;
+                        console.log(`ℹ️ Recuperado avatar ${avatarExistente} de jugador ${nombre} desde sala ${otraSala}`);
+                        break;
+                    }
+                }
             }
 
             // Asignar nuevo ID de jugador
@@ -99,7 +113,7 @@ wss.on("connection", (ws) => {
                 id: playerId, 
                 ws, 
                 nombre, 
-                avatar: null,
+                avatar: avatarExistente, // Usar avatar recuperado o null
                 activo: true
             });
 
@@ -114,14 +128,32 @@ wss.on("connection", (ws) => {
                         nombre 
                     }));
                     console.log("✅ Mensaje enviado a Unity.");
+                    
+                    // Si el jugador ya tenía un avatar, enviar esta información también
+                    if (avatarExistente) {
+                        salas[sala].juego.send(JSON.stringify({ 
+                            tipo: "avatar-seleccionado", 
+                            id: playerId, 
+                            avatar: avatarExistente 
+                        }));
+                        console.log(`✅ Enviado avatar existente ${avatarExistente} para jugador ${nombre}`);
+                    }
                 } catch (error) {
                     console.log("❌ Error enviando mensaje a Unity:", error);
-                    // Guardar el mensaje para enviarlo cuando Unity se reconecte
+                    // Guardar los mensajes para enviarlos cuando Unity se reconecte
                     salas[sala].mensajesPendientes.push({ 
                         tipo: "nuevo-jugador", 
                         id: playerId, 
                         nombre 
                     });
+                    
+                    if (avatarExistente) {
+                        salas[sala].mensajesPendientes.push({
+                            tipo: "avatar-seleccionado",
+                            id: playerId,
+                            avatar: avatarExistente
+                        });
+                    }
                 }
             } else {
                 console.log("⚠️ WebSocket de Unity no está conectado. Guardando mensaje para envío posterior.");
@@ -130,10 +162,22 @@ wss.on("connection", (ws) => {
                     id: playerId, 
                     nombre 
                 });
+                
+                if (avatarExistente) {
+                    salas[sala].mensajesPendientes.push({
+                        tipo: "avatar-seleccionado",
+                        id: playerId,
+                        avatar: avatarExistente
+                    });
+                }
             }
 
-            // Confirmar unión al jugador
-            ws.send(JSON.stringify({ tipo: "confirmacion-union", id: playerId }));
+            // Confirmar unión al jugador e incluir el avatar si existe
+            ws.send(JSON.stringify({ 
+                tipo: "confirmacion-union", 
+                id: playerId,
+                avatar: avatarExistente // Incluir el avatar si existe
+            }));
             
         } else if (data.tipo === "juego") {
             let { sala } = data;
