@@ -9,7 +9,7 @@ app.use(express.json());
 const server = app.listen(3000, () => console.log("Servidor en puerto 3000"));
 const wss = new Server({ server });
 
-let salas = {}; // { "ABCD": { jugadores: [], juego: ws } }
+let salas = {}; // { "ABCD": { jugadores: [], juego: ws, mensajesPendientes: [] } }
 
 // Función para generar un código único de 4 letras
 function generarCodigo() {
@@ -24,14 +24,14 @@ function generarCodigo() {
 // Endpoint para crear una sala
 app.post("/crear-sala", (req, res) => {
     let codigo = generarCodigo();
-    salas[codigo] = { jugadores: [], juego: null };
+    salas[codigo] = { jugadores: [], juego: null, mensajesPendientes: [] };
     res.json({ codigo });
 });
 
-// Nuevo endpoint: Seleccionar avatar
+// Seleccionar avatar
 app.post("/seleccionar-avatar", (req, res) => {
     const { id, avatar } = req.body;
-    
+
     if (!id || !avatar) {
         return res.status(400).json({ error: "ID de jugador y avatar son requeridos" });
     }
@@ -42,12 +42,13 @@ app.post("/seleccionar-avatar", (req, res) => {
         if (jugador) {
             jugador.avatar = avatar;
 
-            // Enviar actualización a Unity
-            if (salas[sala].juego) {
-                console.log(`Enviando mensaje WebSocket a Unity: { tipo: "avatar-seleccionado", id: ${id}, avatar: "${avatar}" }`);
-                salas[sala].juego.send(JSON.stringify({ tipo: "avatar-seleccionado", id, avatar }));
+            const mensaje = { tipo: "avatar-seleccionado", id, avatar };
+            if (salas[sala].juego && salas[sala].juego.readyState === 1) {
+                console.log(`✅ Enviando mensaje WebSocket a Unity:`, mensaje);
+                salas[sala].juego.send(JSON.stringify(mensaje));
             } else {
-                console.log("No se encontró conexión de juego para la sala.");
+                console.log("⚠️ No hay conexión de juego activa, guardando mensaje en cola.");
+                salas[sala].mensajesPendientes.push(mensaje);
             }
 
             return res.json({ mensaje: "Avatar seleccionado con éxito" });
@@ -58,11 +59,19 @@ app.post("/seleccionar-avatar", (req, res) => {
 });
 
 // WebSocket: Manejo de conexiones
-wss.on("connection", (ws, req) => {
+wss.on("connection", (ws) => {
+    console.log("🔗 Nueva conexión WebSocket.");
+
     ws.on("message", (msg) => {
-        console.log("Mensaje recibido:", msg);
-        let data = JSON.parse(msg);
-        
+        console.log("📩 Mensaje recibido:", msg);
+        let data;
+        try {
+            data = JSON.parse(msg);
+        } catch (error) {
+            console.log("❌ Error al parsear mensaje:", error);
+            return;
+        }
+
         if (data.tipo === "unir") { // Jugador se une a una sala
             let { sala, nombre } = data;
 
@@ -71,22 +80,52 @@ wss.on("connection", (ws, req) => {
                 return;
             }
 
-            let playerId = salas[sala].jugadores.length; // ID secuencial
+            let playerId = salas[sala].jugadores.length;
             salas[sala].jugadores.push({ id: playerId, ws, nombre, avatar: null });
 
+            // Manejo de desconexión del jugador
+            ws.on("close", () => {
+                console.log(`❌ Jugador ${playerId} desconectado de la sala ${sala}`);
+                salas[sala].jugadores = salas[sala].jugadores.filter(j => j.ws !== ws);
+            });
+
             // Notificar a Unity sobre el nuevo jugador
-            if (salas[sala].juego) {
+            if (salas[sala].juego && salas[sala].juego.readyState === 1) {
+                console.log(`🔔 Notificando a Unity sobre nuevo jugador: ${nombre}`);
                 salas[sala].juego.send(JSON.stringify({ tipo: "nuevo-jugador", id: playerId, nombre }));
             }
-            // Enviar la respuesta con el id del jugador para la redirección
+
             ws.send(JSON.stringify({ tipo: "confirmacion-union", id: playerId }));
         } 
         
         else if (data.tipo === "juego") { // Unity se une como juego principal
             let { sala } = data;
-            if (salas[sala]) {
-                salas[sala].juego = ws;
+
+            if (!salas[sala]) {
+                ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada" }));
+                return;
             }
+
+            salas[sala].juego = ws;
+
+            console.log(`🎮 Unity conectado a la sala ${sala}`);
+
+            // Enviar mensajes pendientes
+            salas[sala].mensajesPendientes.forEach(mensaje => {
+                console.log(`📤 Enviando mensaje pendiente a Unity:`, mensaje);
+                ws.send(JSON.stringify(mensaje));
+            });
+            salas[sala].mensajesPendientes = []; // Limpiar cola de mensajes pendientes
+
+            // Manejo de desconexión de Unity
+            ws.on("close", () => {
+                console.log(`⚠️ Unity desconectado de la sala ${sala}`);
+                salas[sala].juego = null;
+            });
         }
+    });
+
+    ws.on("close", () => {
+        console.log("⚠️ Un WebSocket se ha desconectado.");
     });
 });
