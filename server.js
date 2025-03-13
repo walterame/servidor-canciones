@@ -129,17 +129,21 @@ wss.on("connection", (ws) => {
         }
     });
 
-    ws.on("close", (code, reason) => {
-        console.log(`⚠️ Un WebSocket se ha desconectado. Código: ${code}, Razón: ${reason || "Sin razón"}`);
-        clearInterval(interval);
+   ws.on("close", (code, reason) => {
+    console.log(`⚠️ Un WebSocket se ha desconectado. Código: ${code}, Razón: ${reason || "Sin razón"}`);
+    
+    // Si el código es 1001, indicar que el cliente cerró la conexión
+    if (code === 1001) {
+        console.log("🔴 El cliente cerró la conexión WebSocket.");
+    }
 
-        // Marcar jugador como inactivo en lugar de eliminarlo inmediatamente
-        if (playerId !== null && salaActual && salas[salaActual]) {
-            let jugador = salas[salaActual].jugadores.find(j => j.id === playerId);
-            if (jugador) {
-                console.log(`❌ Jugador ${playerId} marcado como inactivo en la sala ${salaActual}`);
-                jugador.activo = false;
-            }
+    // Marcar jugador como inactivo en lugar de eliminarlo
+    if (playerId !== null && salaActual && salas[salaActual]) {
+        let jugador = salas[salaActual].jugadores.find(j => j.id === playerId);
+        if (jugador) {
+            console.log(`❌ Jugador ${playerId} marcado como inactivo en la sala ${salaActual}`);
+            jugador.activo = false;
         }
-    });
+    }
+});
 });
