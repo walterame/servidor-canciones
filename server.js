@@ -68,31 +68,41 @@ wss.on("connection", (ws) => {
             return;
         }
 
-        if (data.tipo === "unir") {
-            let { sala, nombre } = data;
-            salaActual = sala;
+       if (data.tipo === "unir") {
+    let { sala, nombre } = data;
+    
+    // Si el jugador ya está en otra sala, eliminarlo de esa sala antes de asignarlo a la nueva
+    for (let salaGuardada in salas) {
+        let index = salas[salaGuardada].jugadores.findIndex(j => j.nombre === nombre);
+        if (index !== -1) {
+            console.log(`🚨 Eliminando al jugador ${nombre} de la sala anterior ${salaGuardada}`);
+            salas[salaGuardada].jugadores.splice(index, 1); // Remover jugador de la sala anterior
+        }
+    }
 
-            if (!salas[sala]) {
-                ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada" }));
-                return;
-            }
+    // Ahora se agrega al jugador en la nueva sala
+    if (!salas[sala]) {
+        ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada" }));
+        return;
+    }
 
-            // Verificar si el jugador ya existe por nombre
-            let jugadorExistente = salas[sala].jugadores.find(j => j.nombre === nombre);
-            if (jugadorExistente) {
-                console.log(`⚠️ El jugador ${nombre} ya estaba en la sala, actualizando WebSocket.`);
-                jugadorExistente.ws = ws;
-                playerId = jugadorExistente.id;
+    let playerId = salas[sala].jugadores.length;
+    salas[sala].jugadores.push({
+        id: playerId,
+        ws,
+        nombre,
+        avatar: null,
+        activo: true
+    });
 
-                // Notificar al jugador que se ha reconectado
-                ws.send(JSON.stringify({
-                    tipo: "confirmacion-union",
-                    id: playerId,
-                    reconectado: true,
-                    avatar: jugadorExistente.avatar // Devolver el avatar actual si existe
-                }));
-                return;
-            }
+    console.log(`✅ Jugador ${nombre} (${playerId}) unido a la sala ${sala}`);
+
+    ws.send(JSON.stringify({
+        tipo: "confirmacion-union",
+        id: playerId,
+        avatar: null
+    }));
+}
 
             // Buscar si el jugador existe en otras salas para preservar su avatar
             let avatarExistente = null;
