@@ -6,7 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const server = app.listen(3000, () => console.log("Servidor en puerto 3000"));
+const server = app.listen(3000, () => console.log("🚀 Servidor en puerto 3000"));
 const wss = new Server({ server });
 
 let salas = {}; // { "ABCD": { jugadores: [], juego: ws, mensajesPendientes: [] } }
@@ -52,7 +52,7 @@ wss.on("connection", (ws) => {
     let playerId = null;
     let salaActual = null;
 
-    // Setup heartbeat
+    // Configurar heartbeat para mantener la conexión activa
     const interval = setInterval(() => {
         if (ws.readyState === 1) {
             ws.send(JSON.stringify({ tipo: "ping" }));
@@ -74,36 +74,22 @@ wss.on("connection", (ws) => {
             let { sala, nombre } = data;
             salaActual = sala;
 
-            // Si el jugador ya está en otra sala, verificar si su WebSocket sigue abierto antes de eliminarlo
-            for (let salaGuardada in salas) {
-                let jugadorIndex = salas[salaGuardada].jugadores.findIndex(j => j.nombre === nombre);
-                if (jugadorIndex !== -1) {
-                    let jugador = salas[salaGuardada].jugadores[jugadorIndex];
-
-                    if (!jugador.ws || jugador.ws.readyState === WebSocket.CLOSED) {
-                        console.log(`🚨 Eliminando al jugador ${nombre} de la sala anterior ${salaGuardada}`);
-                        salas[salaGuardada].jugadores.splice(jugadorIndex, 1);
-                    } else {
-                        console.log(`⚠️ Jugador ${nombre} sigue en la sala ${salaGuardada}, no eliminado.`);
-                    }
-                }
-            }
-
             if (!salas[sala]) {
-                ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada" }));
-                return;
+                console.log(`❌ Sala ${sala} no encontrada. Creándola.`);
+                salas[sala] = { jugadores: [], juego: null, mensajesPendientes: [] };
             }
 
-            // Recuperar el avatar si existía en otra sala
-            let avatarExistente = null;
-            for (let otraSala in salas) {
-                if (otraSala !== sala) {
-                    let jugadorEnOtraSala = salas[otraSala].jugadores.find(j => j.nombre === nombre);
-                    if (jugadorEnOtraSala && jugadorEnOtraSala.avatar) {
-                        avatarExistente = jugadorEnOtraSala.avatar;
-                        console.log(`ℹ️ Recuperado avatar ${avatarExistente} de jugador ${nombre} desde sala ${otraSala}`);
-                        break;
+            // Buscar si el jugador ya está en otra sala
+            for (let salaGuardada in salas) {
+                let jugadorExistente = salas[salaGuardada].jugadores.find(j => j.nombre === nombre);
+                if (jugadorExistente) {
+                    // Si el WebSocket anterior sigue abierto, evitar eliminarlo
+                    if (jugadorExistente.ws && jugadorExistente.ws.readyState === WebSocket.OPEN) {
+                        console.log(`⚠️ Jugador ${nombre} ya tiene una conexión activa en la sala ${salaGuardada}.`);
+                        return;
                     }
+                    console.log(`🚨 Eliminando al jugador ${nombre} de la sala anterior ${salaGuardada}`);
+                    salas[salaGuardada].jugadores = salas[salaGuardada].jugadores.filter(j => j.nombre !== nombre);
                 }
             }
 
@@ -113,84 +99,47 @@ wss.on("connection", (ws) => {
                 id: playerId,
                 ws,
                 nombre,
-                avatar: avatarExistente, // Usar avatar recuperado o null
+                avatar: null,
                 activo: true
             });
 
             console.log(`✅ Jugador ${nombre} (${playerId}) unido a la sala ${sala}`);
 
-            // Confirmar unión al jugador e incluir el avatar si existe
+            // Confirmar unión al jugador
             ws.send(JSON.stringify({
                 tipo: "confirmacion-union",
                 id: playerId,
-                avatar: avatarExistente // Incluir el avatar si existe
+                avatar: null
             }));
 
             // Notificar a Unity sobre el nuevo jugador (si está conectado)
             if (salas[sala].juego && salas[sala].juego.readyState === 1) {
-                try {
-                    salas[sala].juego.send(JSON.stringify({
-                        tipo: "nuevo-jugador",
-                        id: playerId,
-                        nombre
-                    }));
-                    console.log("✅ Mensaje enviado a Unity.");
-
-                    if (avatarExistente) {
-                        salas[sala].juego.send(JSON.stringify({
-                            tipo: "avatar-seleccionado",
-                            id: playerId,
-                            avatar: avatarExistente
-                        }));
-                        console.log(`✅ Enviado avatar existente ${avatarExistente} para jugador ${nombre}`);
-                    }
-                } catch (error) {
-                    console.log("❌ Error enviando mensaje a Unity:", error);
-                    salas[sala].mensajesPendientes.push({
-                        tipo: "nuevo-jugador",
-                        id: playerId,
-                        nombre
-                    });
-
-                    if (avatarExistente) {
-                        salas[sala].mensajesPendientes.push({
-                            tipo: "avatar-seleccionado",
-                            id: playerId,
-                            avatar: avatarExistente
-                        });
-                    }
-                }
+                salas[sala].juego.send(JSON.stringify({
+                    tipo: "nuevo-jugador",
+                    id: playerId,
+                    nombre
+                }));
             } else {
-                salas[sala].mensajesPendientes.push({ tipo: "nuevo-jugador", id: playerId, nombre });
-                if (avatarExistente) {
-                    salas[sala].mensajesPendientes.push({ tipo: "avatar-seleccionado", id: playerId, avatar: avatarExistente });
-                }
+                salas[sala].mensajesPendientes.push({
+                    tipo: "nuevo-jugador",
+                    id: playerId,
+                    nombre
+                });
             }
         }
     });
 
     ws.on("close", (code, reason) => {
-        console.log(`⚠️ Un WebSocket se ha desconectado. Código: ${code}, Razón: ${reason}`);
+        console.log(`⚠️ Un WebSocket se ha desconectado. Código: ${code}, Razón: ${reason || "Sin razón"}`);
         clearInterval(interval);
 
-        // Si es un jugador, marcarlo como inactivo pero no eliminarlo
+        // Marcar jugador como inactivo en lugar de eliminarlo inmediatamente
         if (playerId !== null && salaActual && salas[salaActual]) {
-            const jugador = salas[salaActual].jugadores.find(j => j.id === playerId);
+            let jugador = salas[salaActual].jugadores.find(j => j.id === playerId);
             if (jugador) {
-                console.log(`❌ Jugador ${playerId} desconectado de la sala ${salaActual}`);
+                console.log(`❌ Jugador ${playerId} marcado como inactivo en la sala ${salaActual}`);
                 jugador.activo = false;
-
-                if (salas[salaActual].juego && salas[salaActual].juego.readyState === 1) {
-                    salas[salaActual].juego.send(JSON.stringify({ tipo: "jugador-desconectado", id: playerId }));
-                } else {
-                    salas[salaActual].mensajesPendientes.push({ tipo: "jugador-desconectado", id: playerId });
-                }
             }
-        }
-
-        if (salaActual && salas[salaActual] && salas[salaActual].juego === ws) {
-            console.log(`⚠️ Unity desconectado de la sala ${salaActual}`);
-            salas[salaActual].juego = null;
         }
     });
 });
