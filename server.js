@@ -38,7 +38,7 @@ wss.on("connection", (ws) => {
             // Notificar a todos los jugadores de la sala
             wss.clients.forEach((client) => {
                 if (client.readyState === WebSocket.OPEN && client.join === sala) {
-                    client.send(JSON.stringify({ evento: "nuevo-jugador", data: jugador }));
+                    client.send(JSON.stringify({ evento: "nuevo-jugador", jugador: jugador }));
                 }
             });
         }
