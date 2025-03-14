@@ -18,5 +18,3 @@ router.post("/crear-sala", (req, res) => {
 router.get("/salas", (req, res) => {
     res.json(salas);
 });
-
-module.exports = router;
