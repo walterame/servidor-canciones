@@ -2,7 +2,7 @@ const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
 const cors = require("cors");
-const router = require("./router");
+const router = require("./router"); // Asegúrate de tener el archivo router.js
 
 const app = express();
 const server = http.createServer(app);
@@ -18,6 +18,7 @@ wss.on("connection", (ws) => {
 
     ws.on("message", (message) => {
         const data = JSON.parse(message);
+
         if (data.tipo === "unir") {
             const { sala, nombre } = data;
             if (!salas[sala]) {
@@ -69,9 +70,10 @@ wss.on("connection", (ws) => {
     });
 });
 
+// Configuración de Express
 app.use(cors());
 app.use(express.json());
-app.use(router); // Usamos las rutas separadas en otro archivo
+app.use(router); // Usamos las rutas separadas en otro archivo (router.js)
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`🚀 Servidor corriendo en puerto ${PORT}`));
