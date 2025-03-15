@@ -1,5 +1,4 @@
 const express = require("express");
-const { v4: uuidv4 } = require("uuid");
 
 // Instanciamos el router de Express
 const router = express.Router();
@@ -7,10 +6,8 @@ const router = express.Router();
 // Salas y jugadores (debe ser compartido con el server.js)
 const salas = {};
 
-// Ruta para crear una sala nueva
-router.post("/crear-sala", (req, res) => {
-    // Generamos un código de sala único
-   function generarCodigoSala() {
+// Función para generar un código de sala de 4 letras mayúsculas
+function generarCodigoSala() {
     const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     let codigo = "";
     for (let i = 0; i < 4; i++) {
@@ -19,16 +16,18 @@ router.post("/crear-sala", (req, res) => {
     return codigo;
 }
 
-    // Inicializamos la sala en el objeto salas
+// Ruta para crear una sala nueva
+router.post("/crear-sala", (req, res) => {
+    const codigoSala = generarCodigoSala(); // Generar código con solo letras
+
     salas[codigoSala] = [];
 
-    // Aquí puedes almacenar la sala en la base de datos si es necesario
     console.log(`Sala creada: ${codigoSala}`);
 
     res.json({ codigo: codigoSala });
 });
 
-// Ruta para obtener la lista de jugadores en una sala
+// Ruta para obtener la lista de salas
 router.get("/salas", (req, res) => {
     res.json(salas);
 });
