@@ -10,7 +10,14 @@ const salas = {};
 // Ruta para crear una sala nueva
 router.post("/crear-sala", (req, res) => {
     // Generamos un código de sala único
-    const codigoSala = uuidv4().slice(0, 4).toUpperCase(); // Código de 4 caracteres
+   function generarCodigoSala() {
+    const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let codigo = "";
+    for (let i = 0; i < 4; i++) {
+        codigo += letras.charAt(Math.floor(Math.random() * letras.length));
+    }
+    return codigo;
+}
 
     // Inicializamos la sala en el objeto salas
     salas[codigoSala] = [];
