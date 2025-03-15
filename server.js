@@ -12,11 +12,13 @@ const wss = new WebSocket.Server({ server });
 
 // Salas y jugadores
 const salas = {};
+const jugadoresPorSocket = new Map(); // Mapa para rastrear la sala de cada socket
 
 wss.on("connection", (ws) => {
     console.log("⚡ Usuario conectado");
 
     ws.on("message", (message) => {
+        console.log(`📩 Mensaje recibido: ${message}`);
         const data = JSON.parse(message);
 
         if (data.tipo === "unir") {
@@ -32,13 +34,14 @@ wss.on("connection", (ws) => {
             };
 
             salas[sala].push(jugador);
-            ws.join = sala; // Asignar la sala al socket
+            jugadoresPorSocket.set(ws, sala); // Asignamos la sala al socket
             console.log(`✅ ${nombre} se unió a la sala ${sala}`);
 
             // Notificar a todos los jugadores de la sala
-            wss.clients.forEach((client) => {
-                if (client.readyState === WebSocket.OPEN && client.join === sala) {
-                    client.send(JSON.stringify({ evento: "nuevo-jugador", jugador: jugador }));
+           wss.clients.forEach((client) => {
+                const salaJugador = jugadoresPorSocket.get(client);
+                if (client.readyState === WebSocket.OPEN && salaJugador === sala) {
+                    client.send(JSON.stringify({ evento: "nuevo-jugador", data: jugador })); // 🔹 Formato corregido
                 }
             });
         }
@@ -49,9 +52,9 @@ wss.on("connection", (ws) => {
                 const jugador = salas[sala].find(j => j.id === id);
                 if (jugador) {
                     jugador.avatar = avatar;
-                    // Notificar a todos los jugadores de la sala sobre la actualización
-                    wss.clients.forEach((client) => {
-                        if (client.readyState === WebSocket.OPEN && client.join === sala) {
+                   wss.clients.forEach((client) => {
+                        const salaJugador = jugadoresPorSocket.get(client);
+                        if (client.readyState === WebSocket.OPEN && salaJugador === sala) {
                             client.send(JSON.stringify({ evento: "avatar-actualizado", data: jugador }));
                         }
                     });
@@ -64,8 +67,10 @@ wss.on("connection", (ws) => {
 
     ws.on("close", () => {
         console.log("❌ Usuario desconectado");
-        for (const sala in salas) {
+        const sala = jugadoresPorSocket.get(ws);
+        if (sala) {
             salas[sala] = salas[sala].filter(j => j.id !== ws._socket.remoteAddress);
+            jugadoresPorSocket.delete(ws);
         }
     });
 });
