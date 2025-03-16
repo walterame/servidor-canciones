@@ -17,8 +17,8 @@ io.on('connection', (socket) => {
     socket.on('createRoom', () => {
         const roomCode = nanoid(4).toUpperCase(); // Código de 4 caracteres
         rooms[roomCode] = { players: [] };
-        socket.emit('roomCreated', roomCode);
         console.log(`Sala creada: ${roomCode}`);
+        socket.emit('roomCreated', roomCode);
     });
 
     // Unirse a una sala existente
@@ -63,4 +63,11 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Servidor corriendo en el puerto ${PORT}`);
+});
+
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");  // Permite todas las conexiones
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    next();
 });
