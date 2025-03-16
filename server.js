@@ -22,28 +22,28 @@ io.on('connection', (socket) => {
     });
 
     // Unirse a una sala existente
-    socket.on('joinRoom', ({ playerName, roomCode }) => {
-        if (!rooms[roomCode]) {
-            socket.emit('error', 'Sala no encontrada');
+    socket.on('unirse_a_sala', ({ nombre, codigo }) => { // Cambié 'joinRoom' a 'unirse_a_sala'
+        if (!rooms[codigo]) {
+            socket.emit('error_sala', 'Sala no encontrada');
             return;
         }
 
-        if (rooms[roomCode].players.length >= 8) {
-            socket.emit('error', 'La sala está llena');
+        if (rooms[codigo].players.length >= 8) {
+            socket.emit('error_sala', 'La sala está llena');
             return;
         }
 
         const player = {
             id: socket.id,
-            name: playerName,
-            avatar: null,
+            name: nombre,
+            avatar: null,  // Deberías manejar el avatar en el futuro
             isReady: false,
         };
 
-        rooms[roomCode].players.push(player);
-        socket.join(roomCode);
-        io.to(roomCode).emit('playerJoined', rooms[roomCode].players);
-        console.log(`${playerName} se unió a la sala ${roomCode}`);
+        rooms[codigo].players.push(player);
+        socket.join(codigo);
+        io.to(codigo).emit('sala_unida', rooms[codigo].players); // Emitimos el estado actualizado de la sala
+        console.log(`${nombre} se unió a la sala ${codigo}`);
     });
 
     // Manejo de desconexión
