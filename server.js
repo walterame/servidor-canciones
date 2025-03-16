@@ -1,61 +1,63 @@
 import express from 'express';
 import { createServer } from 'http';
-import { Server } from 'socket.io';
-import { nanoid } from 'nanoid';
+import { WebSocketServer } from 'ws';  // Importamos WebSocketServer de 'ws'
 
 const app = express();
 const server = createServer(app);
-const io = new Server(server);
+const wss = new WebSocketServer({ server });
 
 const rooms = {}; // Almacena las salas y sus jugadores
 
-// Evento de conexión
-io.on('connection', (socket) => {
-    console.log('Un usuario se ha conectado:', socket.id);
+// Evento de conexión para WebSocket
+wss.on('connection', (ws) => {
+    console.log('Un usuario se ha conectado');
 
     // Crear una nueva sala
-    socket.on('createRoom', () => {
-        const roomCode = nanoid(4).toUpperCase(); // Código de 4 caracteres
-        rooms[roomCode] = { players: [] };
-        console.log(`Sala creada: ${roomCode}`);
-        socket.emit('roomCreated', roomCode);
-    });
-
-    // Unirse a una sala existente
-    socket.on('unirse_a_sala', ({ nombre, codigo }) => { // Cambié 'joinRoom' a 'unirse_a_sala'
-        if (!rooms[codigo]) {
-            socket.emit('error_sala', 'Sala no encontrada');
-            return;
+    ws.on('message', (message) => {
+        const parsedMessage = JSON.parse(message);
+        
+        if (parsedMessage.type === 'createRoom') {
+            const roomCode = nanoid(4).toUpperCase(); // Código de 4 caracteres
+            rooms[roomCode] = { players: [] };
+            ws.send(JSON.stringify({ type: 'roomCreated', roomCode }));
+            console.log(`Sala creada: ${roomCode}`);
         }
 
-        if (rooms[codigo].players.length >= 8) {
-            socket.emit('error_sala', 'La sala está llena');
-            return;
+        if (parsedMessage.type === 'unirse_a_sala') {
+            const { nombre, codigo } = parsedMessage;
+            
+            if (!rooms[codigo]) {
+                ws.send(JSON.stringify({ type: 'error_sala', message: 'Sala no encontrada' }));
+                return;
+            }
+
+            if (rooms[codigo].players.length >= 8) {
+                ws.send(JSON.stringify({ type: 'error_sala', message: 'La sala está llena' }));
+                return;
+            }
+
+            const player = {
+                id: ws._socket.remoteAddress,
+                name: nombre,
+                avatar: null, // Lo manejamos después
+                isReady: false,
+            };
+
+            rooms[codigo].players.push(player);
+            ws.send(JSON.stringify({ type: 'sala_unida', players: rooms[codigo].players }));
+            console.log(`${nombre} se unió a la sala ${codigo}`);
         }
-
-        const player = {
-            id: socket.id,
-            name: nombre,
-            avatar: null,  // Deberías manejar el avatar en el futuro
-            isReady: false,
-        };
-
-        rooms[codigo].players.push(player);
-        socket.join(codigo);
-        io.to(codigo).emit('sala_unida', rooms[codigo].players); // Emitimos el estado actualizado de la sala
-        console.log(`${nombre} se unió a la sala ${codigo}`);
     });
 
     // Manejo de desconexión
-    socket.on('disconnect', () => {
+    ws.on('close', () => {
         for (const [roomCode, room] of Object.entries(rooms)) {
-            room.players = room.players.filter(p => p.id !== socket.id);
-            io.to(roomCode).emit('playerJoined', room.players);
+            room.players = room.players.filter(p => p.id !== ws._socket.remoteAddress);
             if (room.players.length === 0) {
                 delete rooms[roomCode];
             }
         }
-        console.log('Usuario desconectado:', socket.id);
+        console.log('Usuario desconectado');
     });
 });
 
@@ -63,11 +65,4 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Servidor corriendo en el puerto ${PORT}`);
-});
-
-app.use((req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "*");  // Permite todas las conexiones
-    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-    next();
 });
