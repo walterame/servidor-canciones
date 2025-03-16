@@ -2,7 +2,6 @@ const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
 const cors = require("cors");
-const router = require("./router"); // Asegúrate de tener el archivo router.js
 
 const app = express();
 const server = http.createServer(app);
@@ -82,8 +81,7 @@ wss.on("connection", (ws) => {
 
 // Configuración de Express
 app.use(cors());
-app.use(express.json());
-app.use(router); // Usamos las rutas separadas en otro archivo (router.js)
+app.use(express.json()); // Esta línea se asegura de que Express pueda manejar JSON
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`🚀 Servidor corriendo en puerto ${PORT}`));
