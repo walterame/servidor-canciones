@@ -1,8 +1,11 @@
+import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import { nanoid } from 'nanoid';
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const { nanoid } = require('nanoid');
-
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
