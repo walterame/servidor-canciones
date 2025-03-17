@@ -1,12 +1,15 @@
-const express = require("express");
-const { Server } = require("ws");
-const cors = require("cors");
+import express from "express";
+import { WebSocketServer as Server } from "ws";
+import cors from "cors";
+import { createServer } from "http";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const server = app.listen(3000, () => console.log("Servidor en puerto 3000"));
+const server = createServer(app);
+server.listen(3000, () => console.log("Servidor en puerto 3000"));
+
 const wss = new Server({ server });
 
 let salas = {}; // { "ABCD": { jugadores: [], juego: ws, mensajesPendientes: [] } }
