@@ -227,6 +227,10 @@ wss.on("connection", (ws) => {
     });
 
     ws.on("close", () => {
+        const index = jugadores.findIndex(jugador => jugador.id === playerId);
+    if (index !== -1) {
+        jugadores.splice(index, 1);
+        console.log(`Jugador con ID ${playerId} eliminado.`);
         console.log("⚠️ Un WebSocket se ha desconectado.");
         clearInterval(interval);
         
@@ -251,7 +255,7 @@ wss.on("connection", (ws) => {
                 }
             }
         }
-        
+    }
         // Si es Unity, marcar el juego como desconectado
         if (salaActual && salas[salaActual] && salas[salaActual].juego === ws) {
             console.log(`⚠️ Unity desconectado de la sala ${salaActual}`);
