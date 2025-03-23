@@ -227,20 +227,17 @@ wss.on("connection", (ws) => {
     });
 
     ws.on("close", () => {
-        const index = jugadores.findIndex(jugador => jugador.id === playerId);
-    if (index !== -1) {
-        jugadores.splice(index, 1);
-        console.log(`Jugador con ID ${playerId} eliminado.`);
-        console.log("⚠️ Un WebSocket se ha desconectado.");
-        clearInterval(interval);
-        
-        // Si es un jugador, marcarlo como inactivo pero no eliminarlo
-        if (playerId !== null && salaActual && salas[salaActual]) {
-            const jugador = salas[salaActual].jugadores.find(j => j.id === playerId);
-            if (jugador) {
+        if (salaActual && salas[salaActual]) {
+            // Buscar al jugador en la sala actual
+            const jugadorIndex = salas[salaActual].jugadores.findIndex(j => j.id === playerId);
+    
+            if (jugadorIndex !== -1) {
+                const jugador = salas[salaActual].jugadores[jugadorIndex];
+    
+                // Marcar al jugador como inactivo
                 console.log(`❌ Jugador ${playerId} desconectado de la sala ${salaActual}`);
                 jugador.activo = false;
-                
+    
                 // Notificar a Unity sobre la desconexión del jugador
                 if (salas[salaActual].juego && salas[salaActual].juego.readyState === 1) {
                     salas[salaActual].juego.send(JSON.stringify({
@@ -254,16 +251,15 @@ wss.on("connection", (ws) => {
                     });
                 }
             }
+    
+            // Si Unity está desconectado, marcarlo como desconectado
+            if (salas[salaActual].juego === ws) {
+                console.log(`⚠️ Unity desconectado de la sala ${salaActual}`);
+                salas[salaActual].juego = null;
+            }
         }
-    }
-        // Si es Unity, marcar el juego como desconectado
-        if (salaActual && salas[salaActual] && salas[salaActual].juego === ws) {
-            console.log(`⚠️ Unity desconectado de la sala ${salaActual}`);
-            salas[salaActual].juego = null;
-        }
-    });
-
-    ws.on("error", (err) => {
-        console.log(`⚠️ Error en WebSocket: ${err.message}`);
+    
+        console.log("⚠️ Un WebSocket se ha desconectado.");
+        clearInterval(interval);
     });
 });
