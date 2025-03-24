@@ -217,14 +217,17 @@ wss.on("connection", (ws) => {
 
     ws.on("close", () => {
         if (salaActual && salas[salaActual]) {
+            // Buscar al jugador en la sala actual
             const jugadorIndex = salas[salaActual].jugadores.findIndex(j => j.id === playerId);
-
+    
             if (jugadorIndex !== -1) {
                 const jugador = salas[salaActual].jugadores[jugadorIndex];
-
+    
+                // Marcar al jugador como inactivo
                 console.log(`❌ Jugador ${playerId} desconectado de la sala ${salaActual}`);
                 jugador.activo = false;
-
+    
+                // Notificar a Unity sobre la desconexión del jugador
                 if (salas[salaActual].juego && salas[salaActual].juego.readyState === 1) {
                     salas[salaActual].juego.send(JSON.stringify({
                         tipo: "jugador-desconectado",
@@ -236,14 +239,27 @@ wss.on("connection", (ws) => {
                         id: playerId
                     });
                 }
+    
+                // Eliminar al jugador completamente de la sala si no está activo
+                salas[salaActual].jugadores.splice(jugadorIndex, 1);
             }
-
+    
+            // Si Unity está desconectado, marcarlo como desconectado
             if (salas[salaActual].juego === ws) {
                 console.log(`⚠️ Unity desconectado de la sala ${salaActual}`);
                 salas[salaActual].juego = null;
             }
+    
+            // Verificar si la sala está vacía (sin jugadores ni Unity)
+            if (
+                salas[salaActual].jugadores.length === 0 &&
+                (!salas[salaActual].juego || salas[salaActual].juego.readyState !== 1)
+            ) {
+                console.log(`🗑️ Eliminando sala vacía: ${salaActual}`);
+                delete salas[salaActual];
+            }
         }
-
+    
         console.log("⚠️ Un WebSocket se ha desconectado.");
         clearInterval(interval);
     });
