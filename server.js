@@ -48,6 +48,22 @@ app.post("/seleccionar-avatar", (req, res) => {
     res.status(404).json({ error: "Jugador no encontrado" });
 });
 
+app.get('/obtener-host', (req, res) => {
+    const sala = req.query.sala;
+
+    const jugadores = salas[sala]; // Supongamos que almacenas los jugadores en un objeto "salas"
+    if (jugadores) {
+        const host = jugadores.find(jugador => jugador.id === 0); // Buscar el host
+        if (host) {
+            res.json({ nombreHost: host.nombre });
+        } else {
+            res.status(404).json({ error: "Host no encontrado" });
+        }
+    } else {
+        res.status(404).json({ error: "Sala no encontrada" });
+    }
+});
+
 wss.on("connection", (ws) => {
     console.log("✅ Nuevo WebSocket conectado.");
     let playerId = null;
