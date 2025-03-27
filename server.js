@@ -51,16 +51,22 @@ app.post("/seleccionar-avatar", (req, res) => {
 app.get('/obtener-host', (req, res) => {
     const sala = req.query.sala;
 
-    const jugadores = salas[sala]; // Supongamos que almacenas los jugadores en un objeto "salas"
-    if (jugadores) {
-        const host = jugadores.find(jugador => jugador.id === 0); // Buscar el host
-        if (host) {
-            res.json({ nombreHost: host.nombre });
-        } else {
-            res.status(404).json({ error: "Host no encontrado" });
-        }
+    if (!salas[sala]) {
+        return res.status(404).json({ error: "Sala no encontrada" });
+    }
+
+    const jugadores = salas[sala].jugadores; // Obtener el array de jugadores
+
+    if (!jugadores || !Array.isArray(jugadores)) {
+        return res.status(500).json({ error: "Estructura de jugadores inválida" });
+    }
+
+    const host = jugadores.find(jugador => jugador.id === 0); // Buscar al jugador con id 0 (host)
+
+    if (host) {
+        res.json({ nombreHost: host.nombre });
     } else {
-        res.status(404).json({ error: "Sala no encontrada" });
+        res.status(404).json({ error: "Host no encontrado" });
     }
 });
 
