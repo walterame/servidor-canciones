@@ -215,7 +215,8 @@ wss.on("connection", (ws) => {
                 const mensajeReady = JSON.stringify({
                     tipo: "actualizar-ready",
                     id: jugador.id,
-                    nombre: jugador.nombre
+                    nombre: jugador.nombre,
+                    isReady: true
                 });
     
                 salas[sala].jugadores.forEach(j => {
