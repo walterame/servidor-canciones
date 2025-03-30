@@ -136,7 +136,8 @@ wss.on("connection", (ws) => {
                 ws, 
                 nombre, 
                 avatar: avatarExistente, 
-                activo: true
+                activo: true,
+                isReady: false
             });
 
             console.log(`✅ Jugador ${nombre} (${playerId}) unido a la sala ${sala}`);
@@ -196,6 +197,39 @@ wss.on("connection", (ws) => {
                 id: playerId,
                 avatar: avatarExistente 
             }));
+
+        } else if (data.tipo === "ready") {
+            let { sala, id } = data;
+    
+            if (!salas[sala]) {
+                ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada" }));
+                return;
+            }
+    
+            let jugador = salas[sala].jugadores.find(j => j.id === id);
+            if (jugador) {
+                jugador.isReady = true;
+                console.log(`✅ Jugador ${jugador.nombre} está listo en la sala ${sala}.`);
+    
+                // Notificar a todos los jugadores en la sala
+                const mensajeReady = JSON.stringify({
+                    tipo: "actualizar-ready",
+                    id: jugador.id,
+                    nombre: jugador.nombre
+                });
+    
+                salas[sala].jugadores.forEach(j => {
+                    if (j.ws && j.ws.readyState === 1) {
+                        j.ws.send(mensajeReady);
+                    }
+                });
+    
+                // Enviar actualización a Unity
+                if (salas[sala].juego && salas[sala].juego.readyState === 1) {
+                    salas[sala].juego.send(mensajeReady);
+                }
+            }
+
 
         } else if (data.tipo === "juego") {
             let { sala } = data;
