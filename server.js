@@ -294,6 +294,14 @@ wss.on("connection", (ws) => {
                 return;
             }
         
+            // ✅ Validar que todos estén listos
+            const todosListos = salas[sala].jugadores.every(jugador => jugador.isReady);
+        
+            if (!todosListos) {
+                ws.send(JSON.stringify({ tipo: "error", mensaje: "No todos los jugadores están listos" }));
+                return;
+            }
+        
             // Enviar a todos los jugadores que la partida comenzó
             const mensaje = JSON.stringify({ tipo: "partida-iniciada" });
         
