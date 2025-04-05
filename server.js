@@ -70,6 +70,23 @@ app.get('/obtener-host', (req, res) => {
     }
 });
 
+app.get("/jugadores", (req, res) => {
+    const sala = req.query.sala;
+
+    if (!sala || !salas[sala]) {
+        return res.status(404).json({ error: "Sala no encontrada" });
+    }
+
+    const jugadores = salas[sala].jugadores.map(j => ({
+        id: j.id,
+        nombre: j.nombre,
+        ready: j.isReady,
+        avatar: j.avatar
+    }));
+
+    res.json(jugadores);
+});
+
 wss.on("connection", (ws) => {
     console.log("✅ Nuevo WebSocket conectado.");
     let playerId = null;
