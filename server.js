@@ -269,7 +269,31 @@ wss.on("connection", (ws) => {
                     }
                 }
             });
+        } else if (data.tipo === "comenzar-partida") {
+            const sala = data.sala;
+        
+            if (!salas[sala]) {
+                ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada para comenzar la partida" }));
+                return;
+            }
+        
+            // Enviar a todos los jugadores que la partida comenzó
+            const mensaje = JSON.stringify({ tipo: "partida-iniciada" });
+        
+            salas[sala].jugadores.forEach(jugador => {
+                if (jugador.ws && jugador.ws.readyState === 1) {
+                    jugador.ws.send(mensaje);
+                }
+            });
+        
+            // Enviar también a Unity si está conectado
+            if (salas[sala].juego && salas[sala].juego.readyState === 1) {
+                salas[sala].juego.send(mensaje);
+            }
+        
+            console.log(`🚀 Partida comenzada en sala ${sala}`);
         }
+
     });
 
     ws.on("close", () => {
