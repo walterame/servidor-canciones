@@ -228,26 +228,18 @@ wss.on("connection", (ws) => {
                 jugador.isReady = true;
                 console.log(`✅ Jugador ${jugador.nombre} está listo en la sala ${sala}.`);
     
-                // Notificar a todos los jugadores en la sala
+                // Notificar solo a Unity
                 const mensajeReady = JSON.stringify({
                     tipo: "actualizar-ready",
                     id: jugador.id,
                     nombre: jugador.nombre,
                     isReady: true
                 });
-    
-                salas[sala].jugadores.forEach(j => {
-                    if (j.ws && j.ws.readyState === 1) {
-                        j.ws.send(mensajeReady);
-                    }
-                });
-    
-                // Enviar actualización a Unity
+
                 if (salas[sala].juego && salas[sala].juego.readyState === 1) {
                     salas[sala].juego.send(mensajeReady);
                 }
             }
-
 
         } else if (data.tipo === "juego") {
             let { sala } = data;
