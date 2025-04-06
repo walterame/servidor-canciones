@@ -290,7 +290,7 @@ wss.on("connection", (ws) => {
             const todosListos = salas[sala].jugadores.every(jugador => jugador.isReady);
         
             if (!todosListos) {
-                ws.send(JSON.stringify({ tipo: "error", mensaje: "No todos los jugadores están listos" }));
+                ws.send(JSON.stringify({ tipo: "error-jugadores-no-listos" }));
                 return;
             }
         
