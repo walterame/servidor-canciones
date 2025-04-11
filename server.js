@@ -326,6 +326,30 @@ wss.on("connection", (ws) => {
                 }
             });
             console.log(`🔔 Pulsadores activados en la sala ${sala}`);
+            
+        } else if (data.tipo === "pulsador_presionado") {
+            const { sala, id } = data;
+        
+            if (!salas[sala]) return;
+        
+            console.log(`🟢 Jugador ${id} presionó el pulsador en la sala ${sala}`);
+        
+            // Notificar a Unity
+            if (salas[sala].juego && salas[sala].juego.readyState === 1) {
+                salas[sala].juego.send(JSON.stringify({
+                    tipo: "pulsador_presionado",
+                    id: id
+                }));
+            }
+        
+            // Desactivar los pulsadores de los demás jugadores
+            salas[sala].jugadores.forEach(jugador => {
+                if (jugador.id !== id && jugador.ws && jugador.ws.readyState === 1) {
+                    jugador.ws.send(JSON.stringify({
+                        tipo: "desactivar_pulsador"
+                    }));
+                }
+            });
         }
 
     });
