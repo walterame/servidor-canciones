@@ -350,6 +350,26 @@ wss.on("connection", (ws) => {
                     }));
                 }
             });
+        } else if (data.tipo === "titulo-actualizado") {
+            const { sala, id, titulo } = data;
+        
+            if (!salas[sala]) {
+                ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada" }));
+                return;
+            }
+        
+            const mensaje = JSON.stringify({
+                tipo: "titulo-actualizado",
+                id,
+                titulo
+            });
+        
+            // Reenviar a Unity
+            if (salas[sala].juego && salas[sala].juego.readyState === 1) {
+                salas[sala].juego.send(mensaje);
+            } else {
+                salas[sala].mensajesPendientes.push(JSON.parse(mensaje));
+            }
         }
 
     });
