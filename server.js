@@ -388,6 +388,17 @@ wss.on("connection", (ws) => {
             } else {
                 salas[sala].mensajesPendientes.push(JSON.parse(mensaje));
             }
+        } else if (data.tipo === "activar-input-artista") {
+            const { sala, id } = data;
+        
+            if (!salas[sala]) return;
+
+            const jugador = salas[sala].jugadores.find(j => j.id === id);
+            if (jugador && jugador.ws && jugador.ws.readyState === 1) {
+                jugador.ws.send(JSON.stringify({
+                    tipo: "activar-input-artista"
+                }));
+            }
         }
 
     });
