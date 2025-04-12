@@ -371,7 +371,7 @@ wss.on("connection", (ws) => {
                 salas[sala].mensajesPendientes.push(JSON.parse(mensaje));
             }
         } else if (data.tipo === "artista-actualizado") {
-            const { sala, id, titulo } = data;
+            const { sala, id, artista } = data;
         
             if (!salas[sala]) {
                 ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada" }));
@@ -381,7 +381,7 @@ wss.on("connection", (ws) => {
             const mensaje = JSON.stringify({
                 tipo: "artista-actualizado",
                 id,
-                titulo
+                artista
             });
         
             // Reenviar a Unity
