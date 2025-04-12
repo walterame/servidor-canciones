@@ -370,6 +370,26 @@ wss.on("connection", (ws) => {
             } else {
                 salas[sala].mensajesPendientes.push(JSON.parse(mensaje));
             }
+        } else if (data.tipo === "artista-actualizado") {
+            const { sala, id, titulo } = data;
+        
+            if (!salas[sala]) {
+                ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada" }));
+                return;
+            }
+        
+            const mensaje = JSON.stringify({
+                tipo: "artista-actualizado",
+                id,
+                titulo
+            });
+        
+            // Reenviar a Unity
+            if (salas[sala].juego && salas[sala].juego.readyState === 1) {
+                salas[sala].juego.send(mensaje);
+            } else {
+                salas[sala].mensajesPendientes.push(JSON.parse(mensaje));
+            }
         } else if (data.tipo === "submit-titulo") {
             const { sala, id } = data;
         
@@ -380,6 +400,24 @@ wss.on("connection", (ws) => {
         
             const mensaje = JSON.stringify({
                 tipo: "submit-titulo",
+                id
+            });
+        
+            if (salas[sala].juego && salas[sala].juego.readyState === 1) {
+                salas[sala].juego.send(mensaje);
+            } else {
+                salas[sala].mensajesPendientes.push(JSON.parse(mensaje));
+            }
+        } else if (data.tipo === "submit-artista") {
+            const { sala, id } = data;
+        
+            if (!salas[sala]) {
+                ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada" }));
+                return;
+            }
+        
+            const mensaje = JSON.stringify({
+                tipo: "submit-artista",
                 id
             });
         
