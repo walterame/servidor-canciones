@@ -370,6 +370,24 @@ wss.on("connection", (ws) => {
             } else {
                 salas[sala].mensajesPendientes.push(JSON.parse(mensaje));
             }
+        } else if (data.tipo === "submit-titulo") {
+            const { sala, id } = data;
+        
+            if (!salas[sala]) {
+                ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada" }));
+                return;
+            }
+        
+            const mensaje = JSON.stringify({
+                tipo: "submit-titulo",
+                id
+            });
+        
+            if (salas[sala].juego && salas[sala].juego.readyState === 1) {
+                salas[sala].juego.send(mensaje);
+            } else {
+                salas[sala].mensajesPendientes.push(JSON.parse(mensaje));
+            }
         }
 
     });
