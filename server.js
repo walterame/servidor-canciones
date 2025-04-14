@@ -454,6 +454,17 @@ wss.on("connection", (ws) => {
                     tipo: "activar-input-artista"
                 }));
             }
+        } else if (data.tipo === "desactivar_pulsador_individual") {
+            const { sala, id } = data;
+        
+            if (!salas[sala]) return;
+
+            const jugador = salas[sala].jugadores.find(j => j.id === id);
+            if (jugador && jugador.ws && jugador.ws.readyState === 1) {
+                jugador.ws.send(JSON.stringify({
+                    tipo: "desactivar_pulsador_individual"
+                }));
+            }
         }
 
     });
