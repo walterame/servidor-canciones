@@ -465,6 +465,23 @@ wss.on("connection", (ws) => {
                     tipo: "desactivar_pulsador_individual"
                 }));
             }
+        } else if (data.tipo === "reactivar_pulsadores_menos") {
+            const sala = data.sala;
+        
+            if (!salas[sala]) {
+                ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada para activar pulsadores" }));
+                return;
+            }
+        
+            const mensaje = JSON.stringify({ tipo: "reactivar_pulsadores_menos" });
+        
+            salas[sala].jugadores.forEach(jugador => {
+                if (jugador.ws && jugador.ws.readyState === 1) {
+                    jugador.ws.send(mensaje);
+                }
+            });
+            console.log(`🔔 Reactivando pulsadores sin fallos en la sala ${sala}`);
+            
         }
 
     });
