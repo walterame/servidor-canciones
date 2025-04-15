@@ -353,9 +353,18 @@ wss.on("connection", (ws) => {
             if (!salas[sala]) return;
         
             // ✅ Verificar si ya hay un jugador que pulsó primero
-            if (salas[sala].bloqueoPulsador) {
-            console.log(`⚠️ Ignorado el pulsador de ${id} porque ya fue presionado por otro jugador.`);
-            return;
+    if (salas[sala].bloqueoPulsador) {
+        console.log(`⚠️ Ignorado el pulsador de ${id} porque ya fue presionado por otro jugador.`);
+        
+        // 🔴 Enviar mensaje al jugador para anular inputTitulo
+        const jugador = salas[sala].jugadores.find(j => j.id === id);
+        if (jugador && jugador.ws && jugador.ws.readyState === 1) {
+            jugador.ws.send(JSON.stringify({
+                tipo: "anular_input_titulo"
+            }));
+        }
+
+        return;
             }
 
             // ✅ Bloquear más pulsaciones
