@@ -25,7 +25,7 @@ function generarCodigo() {
 
 app.post("/crear-sala", (req, res) => {
     let codigo = generarCodigo();
-    salas[codigo] = { jugadores: [], juego: null, mensajesPendientes: [] };
+    salas[codigo] = { jugadores: [], juego: null, mensajesPendientes: [], bloqueoPulsador: false };
     res.json({ codigo });
 });
 
@@ -318,6 +318,9 @@ wss.on("connection", (ws) => {
                 return;
             }
         
+            // ✅ Resetear bloqueo
+            salas[sala].bloqueoPulsador = false;
+
             const mensaje = JSON.stringify({ tipo: "activar_pulsadores" });
         
             salas[sala].jugadores.forEach(jugador => {
@@ -349,6 +352,15 @@ wss.on("connection", (ws) => {
         
             if (!salas[sala]) return;
         
+            // ✅ Verificar si ya hay un jugador que pulsó primero
+            if (salas[sala].bloqueoPulsador) {
+            console.log(`⚠️ Ignorado el pulsador de ${id} porque ya fue presionado por otro jugador.`);
+            return;
+            }
+
+            // ✅ Bloquear más pulsaciones
+            salas[sala].bloqueoPulsador = true;
+
             console.log(`🟢 Jugador ${id} presionó el pulsador en la sala ${sala}`);
         
             // Notificar a Unity
