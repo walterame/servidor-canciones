@@ -485,6 +485,9 @@ wss.on("connection", (ws) => {
                 return;
             }
         
+             // ✅ Resetear bloqueo
+             salas[sala].bloqueoPulsador = false;
+             
             const mensaje = JSON.stringify({ tipo: "reactivar_pulsadores_menos" });
         
             salas[sala].jugadores.forEach(jugador => {
