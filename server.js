@@ -312,16 +312,18 @@ wss.on("connection", (ws) => {
 
         } else if (data.tipo === "activar_pulsadores") {
             const sala = data.sala;
-        
+            const numeroDeRonda = data.numeroDeRonda; // ✅ nuevo dato recibido desde Unity
+
             if (!salas[sala]) {
                 ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada para activar pulsadores" }));
                 return;
             }
         
-            // ✅ Resetear bloqueo
+            // ✅ Guardar la ronda activa en la sala
             salas[sala].bloqueoPulsador = false;
+            salas[sala].rondaActiva = numeroDeRonda;
 
-            const mensaje = JSON.stringify({ tipo: "activar_pulsadores" });
+            const mensaje = JSON.stringify({ tipo: "activar_pulsadores", numeroDeRonda });
         
             salas[sala].jugadores.forEach(jugador => {
                 if (jugador.ws && jugador.ws.readyState === 1) {
@@ -330,57 +332,47 @@ wss.on("connection", (ws) => {
             });
             console.log(`🔔 Pulsadores activados en la sala ${sala}`);
             
-        } else if (data.tipo === "desactivar_todos_pulsadores") {
-            const sala = data.sala;
-        
-            if (!salas[sala]) {
-                ws.send(JSON.stringify({ tipo: "error", mensaje: "Sala no encontrada para activar pulsadores" }));
-                return;
-            }
-        
-            const mensaje = JSON.stringify({ tipo: "desactivar_todos_pulsadores" });
-        
-            salas[sala].jugadores.forEach(jugador => {
-                if (jugador.ws && jugador.ws.readyState === 1) {
-                    jugador.ws.send(mensaje);
-                }
-            });
-            console.log(`🔔 Pulsadores desactivados para todos en la sala ${sala}`);
-            
         } else if (data.tipo === "pulsador_presionado") {
-            const { sala, id } = data;
+            const { sala, id, numeroDeRonda } = data;
         
             if (!salas[sala]) return;
         
-            // ✅ Verificar si ya hay un jugador que pulsó primero
-    if (salas[sala].bloqueoPulsador) {
-        console.log(`⚠️ Ignorado el pulsador de ${id} porque ya fue presionado por otro jugador.`);
-        
-        // 🔴 Enviar mensaje al jugador para anular inputTitulo
-        const jugador = salas[sala].jugadores.find(j => j.id === id);
-        if (jugador && jugador.ws && jugador.ws.readyState === 1) {
-            jugador.ws.send(JSON.stringify({
-                tipo: "anular_input_titulo"
-            }));
-        }
-
-        return;
+            // 🔒 Verificar si la ronda enviada coincide con la ronda actual
+            if (numeroDeRonda !== salas[sala].rondaActiva) {
+                console.log(`❌ Pulsador de ${id} ignorado: ronda incorrecta (recibida ${numeroDeRonda}, actual ${salas[sala].rondaActiva})`);
+                return;
             }
-
+        
+            // ✅ Verificar si ya hay un jugador que pulsó primero
+            if (salas[sala].bloqueoPulsador) {
+                console.log(`⚠️ Ignorado el pulsador de ${id} porque ya fue presionado por otro jugador.`);
+        
+                // 🔴 Enviar mensaje al jugador para anular inputTitulo
+                const jugador = salas[sala].jugadores.find(j => j.id === id);
+                if (jugador && jugador.ws && jugador.ws.readyState === 1) {
+                    jugador.ws.send(JSON.stringify({
+                        tipo: "anular_input_titulo"
+                    }));
+                }
+        
+                return;
+            }
+        
             // ✅ Bloquear más pulsaciones
             salas[sala].bloqueoPulsador = true;
-
-            console.log(`🟢 Jugador ${id} presionó el pulsador en la sala ${sala}`);
         
-            // Notificar a Unity
+            console.log(`🟢 Jugador ${id} presionó el pulsador en la sala ${sala} (ronda ${numeroDeRonda})`);
+        
+            // 🔔 Notificar a Unity
             if (salas[sala].juego && salas[sala].juego.readyState === 1) {
                 salas[sala].juego.send(JSON.stringify({
                     tipo: "pulsador_presionado",
-                    id: id
+                    id: id,
+                    numeroDeRonda: numeroDeRonda
                 }));
             }
         
-            // Desactivar los pulsadores de los demás jugadores
+            // 🚫 Desactivar los pulsadores de los demás jugadores
             salas[sala].jugadores.forEach(jugador => {
                 if (jugador.id !== id && jugador.ws && jugador.ws.readyState === 1) {
                     jugador.ws.send(JSON.stringify({
